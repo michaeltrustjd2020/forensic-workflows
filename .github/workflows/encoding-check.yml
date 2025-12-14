@@ -1,0 +1,34 @@
+﻿name: Encoding Integrity
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check-encoding:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for BOM and smart quotes
+        shell: pwsh
+        run: |
+          \ = @()
+          Get-ChildItem -Recurse -File | ForEach-Object {
+            \ = [System.IO.File]::ReadAllBytes(\)
+            # BOM: EF BB BF
+            if (\.Length -ge 3 -and \[0] -eq 0xEF -and \[1] -eq 0xBB -and \[2] -eq 0xBF) {
+              \ += \"BOM: \\"
+            }
+            # Smart quotes (common Windows CP1252 glyphs)
+            \ = Get-Content \ -Raw -ErrorAction SilentlyContinue
+            if (\ -match "[\u2018\u2019\u201C\u201D]") {
+              \ += \"SmartQuotes: \\"
+            }
+          }
+          if (\.Count -gt 0) {
+            Write-Host \"Found encoding issues:\"
+            \ | ForEach-Object { Write-Host \" - \\" }
+            throw \"Encoding integrity check failed.\"
+          } else {
+            Write-Host \"Encoding checks passed.\"
+          }
