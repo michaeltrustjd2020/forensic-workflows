@@ -8,3 +8,7 @@
 - admissibility-protocols/: CEC §§1271, 1400, 1521 scaffolds
 - continuity-crosswalks/: multi-platform evidence mapping (export method, timestamp, hash, metadata)
 - dashboards/: status boards, CSV/Excel exports, KPIs
+
+
+## Status
+![Encoding Integrity](https://github.com/michaeltrustjd2020/forensic-workflows/actions/workflows/encoding-check.yml/badge.svg)
