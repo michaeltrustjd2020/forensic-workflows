@@ -10,29 +10,44 @@ jobs:
   check-encoding:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Scan for BOM and smart quotes
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Scan for BOM and smart quotes (PowerShell)
         shell: pwsh
         run: |
+          \Stop = 'Stop'
+          \ = @('.git', '.github', 'audit')
+          \ = @('.png','.jpg','.jpeg','.gif','.pdf','.zip','.exe','.dll','.bin','.dat','.mp3','.mp4','.mov','.avi','.ttf','.otf','.woff','.woff2','.ico','.svg')
+
+          function Has-BOM([byte[]]\) { (\.Length -ge 3 -and \[0] -eq 0xEF -and \[1] -eq 0xBB -and \[2] -eq 0xBF) }
+          function Contains-SmartQuotes([string]\) { (\ -match "[\u2018\u2019\u201C\u201D]") }
+
+          \ = (Get-Location).Path
+          \ = Get-ChildItem -Path \ -Recurse -File | Where-Object {
+            \ = \.FullName.Substring(\.Length).TrimStart('\','/')
+            \ = (\ -split '[\\/]+')[0]
+            -not (\ -contains \.ToLower())
+          }
+
           \ = @()
-          Get-ChildItem -Recurse -File | ForEach-Object {
-            try {
-              \ = [System.IO.File]::ReadAllBytes(\)
-              # BOM: EF BB BF
-              if (\.Length -ge 3 -and \[0] -eq 0xEF -and \[1] -eq 0xBB -and \[2] -eq 0xBF) {
-                \ += \"BOM: \\"
-              }
-              \ = Get-Content \ -Raw -ErrorAction Stop
-              if (\ -match "[\u2018\u2019\u201C\u201D]") {
-                \ += \"SmartQuotes: \\"
-              }
-            } catch {
-              # Binary or unreadable file; skip
+          foreach (\ in \) {
+            \ = \False; \ = \False
+            try { \ = [System.IO.File]::ReadAllBytes(\.FullName); \ = Has-BOM \ } catch {}
+            \ = [System.IO.Path]::GetExtension(\.FullName).ToLower()
+            if (-not (\ -contains \)) {
+              try { \ = Get-Content -LiteralPath \.FullName -Raw; \ = Contains-SmartQuotes \ } catch {}
+            }
+            if (\ -or \) {
+              \ += [PSCustomObject]@{ Path=\.FullName; HasBOM=\; SmartQuotes=\ }
             }
           }
+
           if (\.Count -gt 0) {
-            Write-Host \"Found encoding issues:\"; \ | ForEach-Object { Write-Host \" - \\" }
-            throw \"Encoding integrity check failed.\"
+            Write-Host "Found encoding issues:"; \ | Format-Table -AutoSize | Out-String | Write-Host
+            throw "Encoding integrity check failed."
           } else {
-            Write-Host \"Encoding checks passed.\"
+            Write-Host "Encoding checks passed."
           }
