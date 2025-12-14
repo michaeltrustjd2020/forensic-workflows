@@ -1,0 +1,20 @@
+﻿# OS junk
+Thumbs.db
+Desktop.ini
+
+# Editors
+~$*.docx
+~$*.xlsx
+
+# Logs & transcripts
+*.log
+*.tmp
+*.bak
+*.DS_Store
+*.orig
+
+# Node/Python (if you add tooling later)
+node_modules/
+dist/
+__pycache__/
+*.pyc
