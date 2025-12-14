@@ -1,4 +1,7 @@
-﻿# OS junk
+﻿# Ignore audit artifacts
+audit/
+
+# OS junk
 Thumbs.db
 Desktop.ini
 
@@ -6,17 +9,8 @@ Desktop.ini
 ~$*.docx
 ~$*.xlsx
 
-# Logs & transcripts
+# Logs & backups
 *.log
 *.tmp
 *.bak
-*.DS_Store
 *.orig
-
-# Node/Python (if you add tooling later)
-node_modules/
-dist/
-__pycache__/
-*.pyc
-
-audit/
