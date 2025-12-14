@@ -8,13 +8,16 @@ $ErrorActionPreference = "Stop"
 
 function Get-HashSha256 {
     param([string]$Path)
-    using namespace System.Security.Cryptography
-    using namespace System.IO
-    $sha = [SHA256]::Create()
-    $fs  = [File]::OpenRead($Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $fs  = [System.IO.File]::OpenRead($Path)
     try {
-        return ([BitConverter]::ToString($sha.ComputeHash($fs))).Replace("-", "").ToLower()
-    } finally { $fs.Dispose(); $sha.Dispose() }
+        $hashBytes = $sha.ComputeHash($fs)
+        # Convert to hex without dashes
+        -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+    } finally {
+        $fs.Dispose()
+        $sha.Dispose()
+    }
 }
 
 function Has-BOM {
@@ -33,26 +36,33 @@ $ts = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $transcriptPath = Join-Path (Get-Location) "forensic_audit_transcript_$ts.txt"
 Start-Transcript -Path $transcriptPath | Out-Null
 
-# Prepare CSV
+# Prepare CSV rows
 $csvPath = Join-Path (Get-Location) "forensic_audit_$ts.csv"
 $rows = @()
 
 Write-Host "Scanning: $((Resolve-Path $Target).Path)"
+
+# Binary extensions to skip unless -IncludeBinaries
+$binaryExt = @(
+    ".png",".jpg",".jpeg",".gif",".pdf",".zip",".exe",".dll",".bin",".dat",
+    ".mp3",".mp4",".mov",".avi",".ttf",".otf",".woff",".woff2",".ico",".svg"
+)
+
 Get-ChildItem -Path $Target -Recurse -File | ForEach-Object {
     $f = $_.FullName
+    $hash  = Get-HashSha256 -Path $f
     $bytes = $null
-    $text  = $null
     $bom   = $false
     $smart = $false
-    $hash  = Get-HashSha256 -Path $f
 
     try {
         $bytes = [System.IO.File]::ReadAllBytes($f)
         $bom = Has-BOM -Bytes $bytes
-        # Attempt text read unless IncludeBinaries set; skip likely binaries by extension
+
         $ext = [System.IO.Path]::GetExtension($f).ToLower()
-        $likelyBinary = @(".png",".jpg",".jpeg",".gif",".pdf",".zip",".exe",".dll",".bin",".dat",".mp3",".mp4",".mov",".avi",".ttf",".otf",".woff",".woff2",".ico",".svg")
-        if ($IncludeBinaries -or -not ($likelyBinary -contains $ext)) {
+        $shouldCheckText = $IncludeBinaries -or -not ($binaryExt -contains $ext)
+
+        if ($shouldCheckText) {
             try {
                 $text = Get-Content -LiteralPath $f -Raw -ErrorAction Stop
                 $smart = Contains-SmartQuotes -Text $text
@@ -61,7 +71,8 @@ Get-ChildItem -Path $Target -Recurse -File | ForEach-Object {
             }
         }
     } catch {
-        $bom = $false; $smart = $false
+        $bom = $false
+        $smart = $false
     }
 
     $rows += [PSCustomObject]@{
